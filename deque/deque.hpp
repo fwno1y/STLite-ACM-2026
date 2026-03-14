@@ -18,14 +18,14 @@ namespace sjtu {
 		int last_index;
 		int cnt;
 
-		void grow_map(int need_front, int need_back) {
+		void grow_map(int front, int back) {
 			int new_size = cur_size * 2;
-			while (new_size < cnt / CHUNK_SIZE + need_front + need_back + 2) {
+			while (new_size < cnt / CHUNK_SIZE + front + back + 2) {
 				new_size *= 2;
 			}
 			T** new_queue = new T*[new_size]();
 			int new_first = (new_size - (last_chunk - first_chunk + 1)) / 2;
-			for (size_t i = first_chunk; i <= last_chunk; ++i) {
+			for (int i = first_chunk; i <= last_chunk; ++i) {
 				new_queue[new_first + (i - first_chunk)] = queue[i];
 			}
 			delete[] queue;
@@ -39,15 +39,32 @@ namespace sjtu {
 		class const_iterator;
 		class iterator {
 		private:
-			int chunk_index = 0;
-			int inner_index = 0;
-			const deque* deque = nullptr;
+			int chunk_index;
+			int inner_index;
+			const deque* d;
+			//检查迭代器有效性
+			bool is_valid() const {
+				if (d == nullptr) {
+					return false;
+				}
+				if (chunk_index < d->first_chunk || chunk_index > d->last_chunk) {
+					return false;
+				}
+				if (chunk_index == d->first_chunk && inner_index < d->first_index) {
+					return false;
+				}
+				if (chunk_index == d->last_chunk && inner_index > d->last_index) {
+					return false;
+				}
+				return true;
+			}
 			/**
 		 * TODO add data members
 		 *   just add whatever you want.
 		 */
 		public:
-			iterator(int chunk_idx, int inner_idx, const deque* deque) : chunk_index(chunk_idx), inner_index(inner_idx), deque(deque) {}
+			iterator() : chunk_index(0), inner_index(0), d(nullptr) {}
+			iterator(int chunk_idx, int inner_idx, const deque* d) : chunk_index(chunk_idx), inner_index(inner_idx), d(d) {}
 			/**
 			 * return a new iterator which pointer n-next elements
 			 *   even if there are not enough elements, the behaviour is **undefined**.
@@ -57,11 +74,11 @@ namespace sjtu {
 				if (n == 0) {
 					return *this;
 				}
-				int index = (chunk_index - deque->first_chunk) * CHUNK_SIZE + (inner_index - deque->first_index);
+				int index = (chunk_index - d->first_chunk) * CHUNK_SIZE + (inner_index - d->first_index);
 				index += n;
-				int new_chunk_index = (index + deque->first_index) / CHUNK_SIZE + deque->first_chunk;
-				int new_inner_index = (index + deque->first_index) % CHUNK_SIZE;
-				return iterator(new_chunk_index,new_inner_index,deque);
+				int new_chunk_index = (index + d->first_index) / CHUNK_SIZE + d->first_chunk;
+				int new_inner_index = (index + d->first_index) % CHUNK_SIZE;
+				return iterator(new_chunk_index,new_inner_index,d);
 
 				//TODO
 			}
@@ -69,32 +86,32 @@ namespace sjtu {
 				if (n == 0) {
 					return *this;
 				}
-				int index = (chunk_index - deque->first_chunk) * CHUNK_SIZE + (inner_index - deque->first_index);
+				int index = (chunk_index - d->first_chunk) * CHUNK_SIZE + (inner_index - d->first_index);
 				index -= n;
-				int new_chunk_index = (index + deque->first_index) / CHUNK_SIZE + deque->first_chunk;
-				int new_inner_index = (index + deque->first_index) % CHUNK_SIZE;
-				return iterator(new_chunk_index,new_inner_index,deque);
+				int new_chunk_index = (index + d->first_index) / CHUNK_SIZE + d->first_chunk;
+				int new_inner_index = (index + d->first_index) % CHUNK_SIZE;
+				return iterator(new_chunk_index,new_inner_index,d);
 
 				//TODO
 			}
 			// return th distance between two iterator,
 			// if these two iterators points to different vectors, throw invaild_iterator.
 			int operator-(const iterator &rhs) const {
-				if (deque != rhs.deque) {
+				if (d != rhs.d) {
 					throw invalid_iterator();
 				}
-				int index1 = (chunk_index - deque->first_chunk) * CHUNK_SIZE + (inner_index - deque->first_index);
-				int index2 = (rhs.chunk_index - rhs.deque->first_chunk) * CHUNK_SIZE + (rhs.inner_index - rhs.deque->first_index);
+				int index1 = (chunk_index - d->first_chunk) * CHUNK_SIZE + (inner_index - d->first_index);
+				int index2 = (rhs.chunk_index - rhs.d->first_chunk) * CHUNK_SIZE + (rhs.inner_index - rhs.d->first_index);
 				return index1 - index2;
 				//TODO
 			}
 			iterator operator+=(const int &n) {
-				*this += n;
+				*this = *this + n;
 				return *this;
 				//TODO
 			}
 			iterator operator-=(const int &n) {
-				*this -= n;
+				*this = *this - n;
 				return *this;
 				//TODO
 			}
@@ -144,25 +161,31 @@ namespace sjtu {
 			 * TODO *it
 			 */
 			T& operator*() const {
-				return deque->queue[chunk_index][inner_index];
+				if (!is_valid()) {
+					throw invalid_iterator();
+				}
+				return d->queue[chunk_index][inner_index];
 			}
 			/**
 			 * TODO it->field
 			 */
 			T* operator->() const noexcept {
-				return &(deque->queue[chunk_index][inner_index]);
+				if (!is_valid()) {
+					throw invalid_iterator();
+				}
+				return &(d->queue[chunk_index][inner_index]);
 			}
 			/**
 			 * a operator to check whether two iterators are same (pointing to the same memory).
 			 */
 			bool operator==(const iterator &rhs) const {
-				if (chunk_index == rhs.chunk_index && inner_index == rhs.inner_index && deque == rhs.deque) {
+				if (d == rhs.d && chunk_index == rhs.chunk_index && inner_index == rhs.inner_index) {
 					return true;
 				}
 				return false;
 			}
 			bool operator==(const const_iterator &rhs) const {
-				if (chunk_index == rhs.chunk_index && inner_index == rhs.inner_index && deque == rhs.deque) {
+				if (d == rhs.d && chunk_index == rhs.chunk_index && inner_index == rhs.inner_index) {
 					return true;
 				}
 				return false;
@@ -191,54 +214,69 @@ namespace sjtu {
 		private:
 			int chunk_index;
 			int inner_index;
-			const deque* deque;
+			const deque* d;
+			bool is_valid() const {
+				if (d == nullptr) {
+					return false;
+				}
+				if (chunk_index < d->first_chunk || chunk_index > d->last_chunk) {
+					return false;
+				}
+				if (chunk_index == d->first_chunk && inner_index < d->first_index) {
+					return false;
+				}
+				if (chunk_index == d->last_chunk && inner_index > d->last_index) {
+					return false;
+				}
+				return true;
+			}
 			// data members.
 		public:
-			const_iterator() : chunk_index(0),inner_index(0),deque(nullptr) {};
-			const_iterator(int chunk_idx, int inner_idx, const deque* deque) : chunk_index(chunk_idx), inner_index(inner_idx), deque(deque) {
+			const_iterator() : chunk_index(0),inner_index(0),d(nullptr) {};
+			const_iterator(int chunk_idx, int inner_idx, const deque* d) : chunk_index(chunk_idx), inner_index(inner_idx), d(d) {
 				// TODO
 			};
-			const_iterator(const iterator &other) : chunk_index(other.chunk_index), inner_index(other.inner_index), deque(other.deque) {
+			const_iterator(const iterator &other) : chunk_index(other.chunk_index), inner_index(other.inner_index), d(other.d) {
 				// TODO
 			}
 			const_iterator operator+(const int &n) const {
 				if (n == 0) {
 					return *this;
 				}
-				int index = (chunk_index - deque->first_chunk) * CHUNK_SIZE + (inner_index - deque->first_index);
+				int index = (chunk_index - d->first_chunk) * CHUNK_SIZE + (inner_index - d->first_index);
 				index += n;
-				int new_chunk_index = (index + deque->first_index) / CHUNK_SIZE + deque->first_chunk;
-				int new_inner_index = (index + deque->first_index) % CHUNK_SIZE;
-				return const_iterator(new_chunk_index,new_inner_index,deque);
+				int new_chunk_index = (index + d->first_index) / CHUNK_SIZE + d->first_chunk;
+				int new_inner_index = (index + d->first_index) % CHUNK_SIZE;
+				return const_iterator(new_chunk_index,new_inner_index,d);
 				//TODO
 			}
 			const_iterator operator-(const int &n) const {
 				if (n == 0) {
 					return *this;
 				}
-				int index = (chunk_index - deque->first_chunk) * CHUNK_SIZE + (inner_index - deque->first_index);
+				int index = (chunk_index - d->first_chunk) * CHUNK_SIZE + (inner_index - d->first_index);
 				index -= n;
-				int new_chunk_index = (index + deque->first_index) / CHUNK_SIZE + deque->first_chunk;
-				int new_inner_index = (index + deque->first_index) % CHUNK_SIZE;
-				return const_iterator(new_chunk_index,new_inner_index,deque);
+				int new_chunk_index = (index + d->first_index) / CHUNK_SIZE + d->first_chunk;
+				int new_inner_index = (index + d->first_index) % CHUNK_SIZE;
+				return const_iterator(new_chunk_index,new_inner_index,d);
 				//TODO
 			}
 			int operator-(const const_iterator &rhs) const {
-				if (deque != rhs.deque) {
+				if (d != rhs.d) {
 					throw invalid_iterator();
 				}
-				int index1 = (chunk_index - deque->first_chunk) * CHUNK_SIZE + (inner_index - deque->first_index);
-				int index2 = (rhs.chunk_index - rhs.deque->first_chunk) * CHUNK_SIZE + (rhs.inner_index - rhs.deque->first_index);
+				int index1 = (chunk_index - d->first_chunk) * CHUNK_SIZE + (inner_index - d->first_index);
+				int index2 = (rhs.chunk_index - rhs.d->first_chunk) * CHUNK_SIZE + (rhs.inner_index - rhs.d->first_index);
 				return index1 - index2;
 				//TODO
 			}
 			const_iterator operator+=(const int &n) {
-				*this += n;
+				*this = *this + n;
 				return *this;
 				//TODO
 			}
 			const_iterator operator-=(const int &n) {
-				*this -= n;
+				*this = *this - n;
 				return *this;
 				//TODO
 			}
@@ -273,19 +311,25 @@ namespace sjtu {
 				return *this;
 			}
 			const T& operator*() const {
-				return deque->queue[chunk_index][inner_index];
+				if (!is_valid()) {
+					throw invalid_iterator();
+				}
+				return d->queue[chunk_index][inner_index];
 			}
 			const T* operator->() const noexcept {
-				return &(deque->queue[chunk_index][inner_index]);
+				if (!is_valid()) {
+					throw invalid_iterator();
+				}
+				return &(d->queue[chunk_index][inner_index]);
 			}
 			bool operator==(const iterator &rhs) const {
-				if (chunk_index == rhs.chunk_index && inner_index == rhs.inner_index && deque == rhs.deque) {
+				if (chunk_index == rhs.chunk_index && inner_index == rhs.inner_index && d == rhs.d) {
 					return true;
 				}
 				return false;
 			}
 			bool operator==(const const_iterator &rhs) const {
-				if (chunk_index == rhs.chunk_index && inner_index == rhs.inner_index && deque == rhs.deque) {
+				if (chunk_index == rhs.chunk_index && inner_index == rhs.inner_index && d == rhs.d) {
 					return true;
 				}
 				return false;
@@ -353,12 +397,18 @@ namespace sjtu {
 		 * TODO assignment operator
 		 */
 		deque &operator=(const deque &other) {
+			if (this == &other) {
+				return *this;
+			}
+			clear();
+			delete[] queue;
+			cur_size = other.cur_size;
+			queue = new T*[cur_size]();
 			first_chunk = other.first_chunk;
 			first_index = other.first_index;
 			last_chunk = other.last_chunk;
 			last_index = other.last_index;
 			cnt = other.cnt;
-			cur_size = other.cur_size;
 			for (int i = first_chunk; i <= last_chunk; ++i) {
 				if (other.queue[i] != nullptr) {
 					T* new_chunk = static_cast<T*> (::operator new(CHUNK_SIZE * sizeof(T)));
@@ -374,6 +424,9 @@ namespace sjtu {
 					}
 					queue[i] = new_chunk;
 				}
+				else {
+					queue[i] = nullptr;
+				}
 			}
 			return *this;
 		}
@@ -382,7 +435,7 @@ namespace sjtu {
 		 * throw index_out_of_bound if out of bound.
 		 */
 		T & at(const size_t &pos) {
-			if (pos > cnt) {
+			if (pos >= cnt) {
 				throw index_out_of_bound();
 			}
 			int index = pos + first_index;
@@ -391,7 +444,7 @@ namespace sjtu {
 			return queue[chunk][inner_index];
 		}
 		const T & at(const size_t &pos) const {
-			if (pos > cnt) {
+			if (pos >= cnt) {
 				throw index_out_of_bound();
 			}
 			int index = pos + first_index;
@@ -429,19 +482,31 @@ namespace sjtu {
 		 * returns an iterator to the beginning.
 		 */
 		iterator begin() {
-			return iterator(first_chunk,first_index,*this);
+			if (cnt == 0) {
+				return end();
+			}
+			return iterator(first_chunk,first_index,this);
 		}
 		const_iterator cbegin() const {
-			return const_iterator(first_chunk,first_index,*this);
+			if (cnt == 0) {
+				return cend();
+			}
+			return const_iterator(first_chunk,first_index,this);
 		}
 		/**
 		 * returns an iterator to the end.
 		 */
 		iterator end() {
-			return iterator(last_chunk,last_index,*this);
+			if (last_index + 1 == CHUNK_SIZE) {
+				return iterator(last_chunk + 1,0,this);
+			}
+			return iterator(last_chunk,last_index + 1,this);
 		}
 		const_iterator cend() const {
-			return const_iterator(last_chunk,last_index,*this);
+			if (last_index + 1 == CHUNK_SIZE) {
+				return const_iterator(last_chunk + 1, 0, this);
+			}
+			return const_iterator(last_chunk,last_index + 1,this);
 		}
 		/**
 		 * checks whether the container is empty.
@@ -456,7 +521,7 @@ namespace sjtu {
 		 * returns the number of elements
 		 */
 		size_t size() const {
-			return cnt;
+			return static_cast<size_t>(cnt);
 		}
 		/**
 		 * clears the contents
@@ -489,7 +554,7 @@ namespace sjtu {
 		 *     throw if the iterator is invalid or it point to a wrong place.
 		 */
 		iterator insert(iterator pos, const T &value) {
-			if (pos.deque != this) {
+			if (pos.d != this) {
 				throw invalid_iterator();
 			}
 			if (pos == begin()) {
@@ -500,26 +565,27 @@ namespace sjtu {
 				push_back(value);
 				return --end();
 			}
-			iterator it = end();
-			while (it != pos) {
-				iterator pre = it - 1;
-				*it = *pre;
-				--it;
+			int index = pos - begin();
+			push_back(value);     //包含扩容
+			//注意可能扩容迭代器变了
+			iterator new_pos = begin() + index;
+			iterator last = end() - 1;
+			iterator cur = last;
+			while (cur != new_pos) {
+				*cur = *(cur - 1);
+				--cur;
 			}
-			*pos = value;
-			++cnt;
-			if (last_index + 1 == CHUNK_SIZE) {
-				if (last_chunk + 1 >= cur_size) {
-					grow_map(0, 1);
-				}
-				T* new_block = static_cast<T*>(::operator new(CHUNK_SIZE * sizeof(T)));
-				queue[++last_chunk] = new_block;
-				last_index = 0;
-			}
-			else {
-				++last_index;
-			}
-			return pos;
+			*new_pos = value;
+			return new_pos;
+			// push_back(value);
+			// iterator last = end() - 1;
+			// iterator cur = last;
+			// while (cur != pos) {
+			// 	*cur = *(cur - 1);
+			// 	--cur;
+			// }
+			// *pos = value;
+			// return pos;
 		}
 		/**
 		 * removes specified element at pos.
@@ -531,7 +597,7 @@ namespace sjtu {
 			if (cnt == 0) {
 				throw container_is_empty();
 			}
-			if (pos.deque != this) {
+			if (pos.d != this) {
 				throw invalid_iterator();
 			}
 			if (pos == end()) {
@@ -564,14 +630,14 @@ namespace sjtu {
 					grow_map(1,1 );
 				}
 				queue[first_chunk] = static_cast<T*>(::operator new(CHUNK_SIZE * sizeof(T)));
-				new (queue[first_chunk][first_index]) T(value);
+				new (queue[first_chunk] + first_index) T(value);
 				last_chunk = first_chunk;
 				last_index = first_index;
 				cnt = 1;
 				return;
 			}
 			if (last_index + 1 < CHUNK_SIZE) {
-				new (queue[last_chunk][last_index + 1]) T(value);
+				new (queue[last_chunk] + last_index + 1) T(value);
 				++last_index;
 				++cnt;
 			}
@@ -621,7 +687,7 @@ namespace sjtu {
 				return;
 			}
 			if (first_index > 0) {
-				new (queue[first_chunk][first_index - 1]) T(value);
+				new (queue[first_chunk] + first_index - 1) T(value);
 				--first_index;
 				++cnt;
 			}
@@ -630,7 +696,7 @@ namespace sjtu {
 					grow_map(1, 0);
 				}
 				T* new_chunk = static_cast<T*>(::operator new(CHUNK_SIZE * sizeof(T)));
-				queue[--first_index] = new_chunk;
+				queue[--first_chunk] = new_chunk;
 				new (new_chunk + CHUNK_SIZE - 1) T(value);
 				first_index = CHUNK_SIZE - 1;
 				++cnt;
