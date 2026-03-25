@@ -17,7 +17,7 @@ namespace sjtu {
 		int last_chunk;
 		int last_index;
 		int cnt;
-
+		//扩容
 		void grow_map(int front, int back) {
 			int new_size = cur_size * 2;
 			while (new_size < cnt / CHUNK_SIZE + front + back + 2) {
