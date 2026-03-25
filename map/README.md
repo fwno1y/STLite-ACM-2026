@@ -27,6 +27,44 @@
   1. 使用普通的二叉搜索树完成此题，最终得分为：0.4\*以上得分
   2. 使用非二叉搜索树、以及要求的算法外的方法完成此题，最终得分为：0.7\*以上得分
 - **学术诚信问题**：如果在 CR 时，发现有任何违规行为（包括但不限于使用其它头文件、使用非常规方法通过测试点），你最终的得分都有可能为 0 分。
+
+## 本地测试
+
+以下命令均在项目根目录(STLite-ACM-2026)下执行
+
+### 1. 配置工程
+
+```bash
+cmake -S . -B build
+```
+
+### 2. 构建 map 相关目标
+
+```bash
+cmake --build build --target \
+  map_one map_two map_three map_four map_five \
+  map_one_memcheck map_two_memcheck map_three_memcheck map_four_memcheck map_five_memcheck \
+  map_corner_1 map_corner_2 map_corner_3
+```
+
+### 3. 运行普通测试
+
+```bash
+ctest --test-dir build -R '^map_(one|two|three|four|five|corner_[123])$' --output-on-failure
+```
+
+### 4. 运行 memcheck 测试
+
+```bash
+ctest --test-dir build -R '^map_.*_memcheck$' --output-on-failure
+```
+
+说明：
+
+- `.memcheck` 测试目标默认会使用 `-fsanitize=address` 和 `-fsanitize=undefined`。
+- 在非 Apple 平台还会额外启用 `-fsanitize=leak`。
+- 如果系统安装了 `valgrind`，`.memcheck` 测试会自动在 valgrind 下运行并进行泄漏检查；如果未安装，则自动回退到仅使用 sanitizer 的流程。
+
 ## 截止日期
 
-作业时间为三周，即 ddl 设在第九周周日上机课之前(4月20号 18:30)，大家合理安排时间完成~
+作业时间为三周，即 ddl 设在第八周周一上机课之前(4月20号 18:30)，大家合理安排时间完成~
