@@ -32,7 +32,7 @@ void check2() {  // 测试pop 以及 top访问
         int x = Rand();
         Q.push(x);
     }
-    printf("%d ", Q.size());
+    printf("%ld ", Q.size());
     while (!Q.empty()) {
         printf("%d", Q.top());
         Q.pop();
@@ -73,7 +73,7 @@ void check4() {  // 测试拷贝构造
         Q.push(x);
     }
     sjtu::priority_queue<int> Q2(Q);
-    printf("%d ", Q2.size());
+    printf("%ld ", Q2.size());
     while (!Q2.empty()) {
         printf("%d ", Q2.top());
         Q2.pop();
@@ -89,7 +89,7 @@ void check5() {  // 测试"="
     }
     sjtu::priority_queue<int> Q2;
     Q2 = Q;
-    printf("%d ", Q2.size());
+    printf("%ld ", Q2.size());
     while (!Q2.empty()) {
         printf("%d ", Q2.top());
         Q2.pop();
@@ -187,13 +187,13 @@ void check10() {  // 考察传到自己的类是否能正常工作
             }
         }
         if (size) {
-            printf("%d ", Q.top());
+            printf("%d ", Q.top().num);
         }
     }
     printf("\n");
 }
 
-// check11为CE test 将注释代码进行编译，如果没有CE则通过该测试点
+// check11为 CE test 将注释代码进行编译，如果没有CE则通过该测试点
 
 struct node {
     int num;

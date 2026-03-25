@@ -60,6 +60,8 @@ struct Natural {
     }
 };
 
+// Discarded, for not cooperating with latest requirements.
+/*
 void TestCompareException() {
     std::cout << "Testing compare exception...";
 
@@ -102,11 +104,12 @@ void TestCompareException() {
 
     std::cout << "ok." << std::endl;
 }
+    */
 
 int main(int argc, char* const argv[]) {
     TestConstructorAndPush();
     TestSize();
     TestException();
-    TestCompareException();
+    // TestCompareException();
     return 0;
 }

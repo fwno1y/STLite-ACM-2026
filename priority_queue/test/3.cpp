@@ -37,6 +37,7 @@ class T2  // pointer + no_construct
         if (this == &other) return *this;
         delete data;
         data = new int(*(other.data));
+        return *this;
     }
     ~T2() {
         delete data;

@@ -158,8 +158,8 @@ bool compare_state(const std::vector<ExtNat>& expected_state,
 // Test 1: Basic push/pop test (no exceptions triggered)
 bool test1() {
     std::cout << "[Test1] Running..." << std::endl;
-    sjtu::priority_queue<ExtNat>
-        pq;  // the default compare is std::less<ExtNat>, which is a good one.
+    // the default comparator is std::less<ExtNat>, which is a good one.
+    sjtu::priority_queue<ExtNat> pq;
 
     try {
         for (int i = 0; i < 1000; i++) {

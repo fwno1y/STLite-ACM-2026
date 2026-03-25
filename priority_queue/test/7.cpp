@@ -172,28 +172,28 @@ bool TestClear() {
 bool TestExceptions() {
     std::cout << "Testing exceptions...";
     bool flag1 = false;
+    sjtu::priority_queue<int> pq1;
+    for (int i = 0; i < 144; ++i) pq1.push(rand_int());
+    for (int i = 0; i < 144; ++i) pq1.pop();
     try {
-        sjtu::priority_queue<int> pq;
-        for (int i = 0; i < 100; ++i) pq.push(i);
-        for (int i = 0; i < 100; ++i) pq.pop();
-        pq.pop();
+        pq1.pop();
     } catch (sjtu::container_is_empty&) {
         flag1 = true;
     } catch (...) {
         // Nah.
     }
     bool flag2 = false;
+    sjtu::priority_queue<int> pq2;
+    for (int i = 0; i < 124; ++i) pq2.push(rand_int());
+    for (int i = 0; i < 124; ++i) pq2.pop();
     try {
-        sjtu::priority_queue<int> pq;
-        for (int i = 0; i < 100; ++i) pq.push(i);
-        for (int i = 0; i < 100; ++i) pq.pop();
-        int _top = pq.top();
+        int _top = pq2.top();
     } catch (sjtu::container_is_empty&) {
         flag2 = true;
     } catch (...) {
         // Nah.
     }
-    bool verdict = flag1 && flag2;
+    bool verdict = flag1 && flag2 && pq1.empty() && pq2.empty();
     std::cout << (verdict ? " Pass." : " Fail.") << std::endl;
     return verdict;
 }
