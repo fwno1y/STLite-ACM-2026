@@ -10,13 +10,13 @@ namespace sjtu {
 	class deque {
 	private:
 		static constexpr int CHUNK_SIZE = 16;
-		T** queue;
-		int cur_size;
-		int first_chunk;
-		int first_index;
-		int last_chunk;
-		int last_index;
-		int cnt;
+		T** queue; //队列
+		int cur_size; //当前块数
+		int first_chunk; //第一个块号
+		int first_index; //第一个块内的第一个元素序号
+		int last_chunk; //最后一个块号
+		int last_index; //最后一个块内的最后一个元素序号
+		int cnt; //元素个数
 		//扩容
 		void grow_map(int front, int back) {
 			int new_size = cur_size * 2;
@@ -42,6 +42,7 @@ namespace sjtu {
 			int chunk_index;
 			int inner_index;
 			const deque* d;
+			//访问有效性
 			bool is_valid() const {
 				if (d == nullptr) {
 					return false;
@@ -76,10 +77,10 @@ namespace sjtu {
 				if (n == 0) {
 					return *this;
 				}
-				int index = (chunk_index - d->first_chunk) * CHUNK_SIZE + (inner_index - d->first_index);
+				int index = (chunk_index - d->first_chunk) * CHUNK_SIZE + (inner_index - d->first_index); //计算总体的编号
 				index += n;
-				int new_chunk_index = (index + d->first_index) / CHUNK_SIZE + d->first_chunk;
-				int new_inner_index = (index + d->first_index) % CHUNK_SIZE;
+				int new_chunk_index = (index + d->first_index) / CHUNK_SIZE + d->first_chunk; //算新的块号
+				int new_inner_index = (index + d->first_index) % CHUNK_SIZE; //算新的内部序号
 				return iterator(new_chunk_index,new_inner_index,d);
 
 				//TODO
@@ -718,6 +719,7 @@ namespace sjtu {
 				throw container_is_empty();
 			}
 			queue[first_chunk][first_index].~T();
+			//如果只剩一个元素要删去第一个块，避免leak
 			if (cnt == 1) {
 				::operator delete(queue[first_chunk]);
 				queue[first_chunk] = nullptr;
