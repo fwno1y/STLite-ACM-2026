@@ -26,27 +26,33 @@ namespace sjtu {
 template <class T, class Compare = std::less<T>>
 class priority_queue {
 public:
+    //斜堆
     struct Node {
         T data;
         Node* lson;
         Node* rson;
-
         Node() = default;
         Node(const T& data) : data(data), lson(nullptr), rson(nullptr) {}
-        Node(const T& data, Node* l, Node* r) : data(data), lson(l),rson(r) {}
         ~Node() = default;
     };
 private:
-    Node* root;
-    int cur_size;
-    Compare compare;
+    Node* root;//根节点
+    int cur_size;//当前大小
+    Compare compare;//比较器
     //辅助函数
     //拷贝
     Node* copyNode(Node* other) {
         if (other == nullptr) {
             return nullptr;
         }
-        Node* new_node = new Node(other->data,other->lson,other->rson);
+        Node* new_node = new Node(other->data);
+        try {
+            new_node->lson = copyNode(other->lson);
+            new_node->rson = copyNode(other->rson);
+        } catch (...) {
+            delete new_node;
+            throw;
+        }
         return new_node;
     }
     //析构
@@ -67,10 +73,14 @@ private:
             return a;
         }
         if (compare(a->data,b->data)) {
-            std::swap(a,b);
+            Node* tmp = a;
+            a = b;
+            b = tmp;
         }
         a->rson = mergeNode(a->rson,b);
-        std::swap(a->lson,a->rson);
+        Node* tmp = a->rson;
+        a->rson = a->lson;
+        a->lson = tmp;
         return a;
     }
 
@@ -86,8 +96,9 @@ public:
 
     priority_queue& operator=(const priority_queue& other) {
         if (this != &other) {
+            Node* new_node = copyNode(other.root);
             clear();
-            root = copyNode(other.root);
+            root = new_node;
             cur_size = other.cur_size;
         }
         return *this;
@@ -96,7 +107,12 @@ public:
     /** Adds one element to the queue. */
     void push(const T& data) {
         Node* new_node = new Node(data);
-        root = mergeNode(root,new_node);
+        try {
+            root = mergeNode(root,new_node);
+        } catch (...) {
+            delete new_node;
+            throw;
+        }
         cur_size++;
     }
 
