@@ -39,7 +39,7 @@ private:
       Node* parent;
       int height;
 
-      Node(const value_type& v, Node* p) : left(nullptr),right(nullptr),parent(p) {
+      Node(const value_type& v, Node* p) : left(nullptr),right(nullptr),parent(p),height(0) {
           data = reinterpret_cast<value_type*>(new char[sizeof(value_type)]);
           new (data) value_type(v);
       }
@@ -99,6 +99,7 @@ private:
       }
       t1->left = t;
       t1->parent = t->parent;
+      t->parent = t1;
       updateHeight(t);
       updateHeight(t1);
       t = t1;
@@ -149,12 +150,12 @@ private:
       if (t == nullptr) {
           return;
       }
-      clear(t->left);
-      clear(t->right);
+      clearNode(t->left);
+      clearNode(t->right);
       delete t;
   }
 
-  Node* insertNode(Node* t, Node* p, const value_type& v, bool& flag) {
+  Node* insertNode(Node* & t, Node* p, const value_type& v, bool& flag) {
       if (t == nullptr) {
           t = new Node(v, p);
           size_++;
@@ -188,16 +189,30 @@ private:
       }
       else {
           if (t->left != nullptr && t->right != nullptr) {
+              Node* oldNode = t;
               Node* tmp = t->right;
               while (tmp->left != nullptr) {
                   tmp = tmp->left;
               }
-              value_type* old_data = t->data;
-              t->data = reinterpret_cast<value_type*>(new char[sizeof(value_type)]);
-              new (t->data) value_type(*(tmp->data));
-              removeNode(t->right, t->data->first);
-              old_data->~value_type();
-              delete[] reinterpret_cast<char*>(old_data);
+              if (tmp->parent != t) {
+                  Node* p = tmp->parent;
+                  p->left = tmp->right;
+                  if (tmp->right != nullptr) {
+                      tmp->right->parent = p;
+                  }
+                  tmp->right = t->right;
+                  if (tmp->right != nullptr) {
+                      tmp->right->parent = tmp;
+                  }
+              }
+              tmp->left = t->left;
+              if (tmp->left != nullptr) {
+                  tmp->left->parent = tmp;
+              }
+              tmp->parent = t->parent;
+              t = tmp;
+              delete oldNode;
+              size_--;
           }
           else {
               Node* oldNode = t;
@@ -215,9 +230,10 @@ private:
               size_--;
           }
       }
+      balance(t);
   }
 
-  Node* findNode(const Key& key) {
+  Node* findNode(const Key& key) const {
       Node* cur = root;
       while (cur != nullptr) {
           if (compare(key,cur->data->first)) {
@@ -239,21 +255,21 @@ public:
       friend class map;
    private:
       Node* p;
-      const map* map;
+      const map* map_;
     /**
      * TODO add data members
      *   just add whatever you want.
      */
    public:
-    iterator() {
-        p = nullptr;
-        map = nullptr;
+    iterator(Node* ptr = nullptr, const map* m = nullptr) {
+        p = ptr;
+        map_ = m;
       // TODO
     }
 
     iterator(const iterator &other) {
         p = other.p;
-        map = other.map;
+        map_ = other.map_;
       // TODO
     }
 
@@ -303,11 +319,14 @@ public:
      * TODO --iter
      */
     iterator &operator--() {
+        if (map_ == nullptr) {
+            throw invalid_iterator();
+        }
         if (p == nullptr) {
-            if (map->root == nullptr) {
+            if (map_->root == nullptr) {
                 throw invalid_iterator();
             }
-            p = map->root;
+            p = map_->root;
             while (p->right != nullptr) {
                 p = p->right;
             }
@@ -338,18 +357,21 @@ public:
      * a operator to check whether two iterators are same (pointing to the same memory).
      */
     value_type &operator*() const {
+        if (p == nullptr) {
+            throw invalid_iterator();
+        }
         return *(p->data);
     }
 
     bool operator==(const iterator &rhs) const {
-        if (p == rhs.p && map == rhs.map) {
+        if (p == rhs.p && map_ == rhs.map_) {
             return true;
         }
         return false;
     }
 
     bool operator==(const const_iterator &rhs) const {
-        if (p == rhs.p && map == rhs.map) {
+        if (p == rhs.p && map_ == rhs.map_) {
             return true;
         }
         return false;
@@ -359,14 +381,14 @@ public:
      * some other operator for iterator.
      */
     bool operator!=(const iterator &rhs) const {
-        if (p == rhs.p && map == rhs.map) {
+        if (p == rhs.p && map_ == rhs.map_) {
             return false;
         }
         return true;
     }
 
     bool operator!=(const const_iterator &rhs) const {
-        if (p == rhs.p && map == rhs.map) {
+        if (p == rhs.p && map_ == rhs.map_) {
             return false;
         }
         return true;
@@ -378,6 +400,9 @@ public:
      */
     value_type *operator->() const
     noexcept {
+        if (p == nullptr) {
+            return nullptr;
+        }
         return p->data;
     }
   };
@@ -387,24 +412,24 @@ public:
     //  and it should be able to construct from an iterator.
    private:
       const Node* p;
-      const map* map;
+      const map* map_;
     // data members.
    public:
-    const_iterator() {
-        p = nullptr;
-        map = nullptr;
+    const_iterator(const Node* ptr = nullptr, const map* m = nullptr) {
+        p = ptr;
+        map_ = m;
       // TODO
     }
 
     const_iterator(const const_iterator &other) {
         p = other.p;
-        map = other.map;
+        map_ = other.map_;
       // TODO
     }
 
     const_iterator(const iterator &other) {
         p = other.p;
-        map = other.map;
+        map_ = other.map_;
       // TODO
     }
 
@@ -420,7 +445,7 @@ public:
             }
         } else {
             Node *p1 = ptr->parent;
-            while (p != nullptr && ptr == p1->right) {
+            while (p1 != nullptr && ptr == p1->right) {
                 ptr = p1;
                 p1 = p1->parent;
             }
@@ -439,10 +464,10 @@ public:
     const_iterator& operator--() {
         Node *ptr = const_cast<Node*>(p);
         if (ptr == nullptr) {
-            if (map->root == nullptr) {
+            if (map_->root == nullptr) {
                 throw invalid_iterator();
             }
-            ptr = map->root;
+            ptr = map_->root;
             while (ptr->right != nullptr) {
                 ptr = ptr->right;
             }
@@ -477,18 +502,21 @@ public:
     }
 
     const value_type &operator*() const {
+        if (p == nullptr) {
+            throw invalid_iterator();
+        }
         return *(p->data);
     }
 
     bool operator==(const const_iterator &rhs) const {
-        if (p == rhs.p && map == rhs.map) {
+        if (p == rhs.p && map_ == rhs.map_) {
             return true;
         }
         return false;
     }
 
     bool operator!=(const const_iterator &rhs) const {
-        if (p == rhs.p && map == rhs.map) {
+        if (p == rhs.p && map_ == rhs.map_) {
             return false;
         }
         return true;
@@ -496,6 +524,9 @@ public:
 
     const value_type *operator->() const
     noexcept {
+        if (p == nullptr) {
+            return nullptr;
+        }
         return p->data;
     }
     // And other methods in iterator.
@@ -511,6 +542,7 @@ public:
   map(const map &other) {
       size_ = other.size_;
       root = copyNode(other.root,nullptr);
+      compare = other.compare;
   }
 
   /**
@@ -523,6 +555,7 @@ public:
       clearNode(root);
       root = copyNode(other.root,nullptr);
       size_ = other.size_;
+      compare = other.compare;
       return *this;
   }
 
@@ -548,7 +581,7 @@ public:
   }
 
   const T &at(const Key &key) const {
-      Node* res = const_cast<map*>(this)->findNode(key); // 传入指针this为const map*,与上面不同
+      Node* res = findNode(key); // 传入指针this为const map*,与上面不同
       if (res == nullptr) {
           throw index_out_of_bound();
       }
@@ -562,7 +595,8 @@ public:
    *   performing an insertion if such key does not already exist.
    */
   T &operator[](const Key &key) {
-      Node* res = insertNode(root,nullptr,value_type(key,T()));
+      bool flag;
+      Node* res = insertNode(root,nullptr,value_type(key,T()),flag);
       return res->data->second;
   }
 
@@ -570,7 +604,10 @@ public:
    * behave like at() throw index_out_of_bound if such key does not exist.
    */
   const T &operator[](const Key &key) const {
-      Node* res = insertNode(root,nullptr,value_type(key,T()));
+      Node* res = findNode(key);
+      if (res == nullptr) {
+          throw index_out_of_bound();
+      }
       return res->data->second;
   }
 
@@ -590,7 +627,7 @@ public:
 
   const_iterator cbegin() const {
       if (root == nullptr) {
-          return end();
+          return cend();
       }
       Node* t = root;
       while (t->left != nullptr) {
@@ -656,7 +693,7 @@ public:
    * throw if pos pointed to a bad element (pos == this->end() || pos points an element out of this)
    */
   void erase(iterator pos) {
-      if (pos == end() || pos.map != this) {
+      if (pos == end() || pos.map_ != this) {
           throw invalid_iterator();
       }
       removeNode(root,pos->first);
@@ -670,7 +707,7 @@ public:
    * The default method of check the equivalence is !(a < b || b > a)
    */
   size_t count(const Key &key) const {
-      if (findNode(key) != nullptr) {
+      if (const_cast<map*>(this)->findNode(key) != nullptr) { //含const成员函数要用const_cast把this指针转为非const  报错信息“error: passing ‘const xxx’ as ‘this’ argument discards qualifiers [-fpermissive]”
           return 1;
       }
       return 0;
